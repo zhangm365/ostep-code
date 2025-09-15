@@ -22,8 +22,10 @@ int main(int argc, char *argv[]) {
     printf("parent: begin\n");
     Pthread_create(&p, NULL, child, NULL);
     Mutex_lock(&m);
-    while (done == 0) 
-	Cond_wait(&c, &m); // releases lock when going to sleep
+    while (done == 0) {
+        Cond_wait(&c, &m); // releases lock when going to sleep
+    }
+	    
     Mutex_unlock(&m);
     printf("parent: end\n");
     return 0;

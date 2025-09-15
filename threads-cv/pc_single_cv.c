@@ -38,23 +38,26 @@ int do_get() {
 void *producer(void *arg) {
     int i;
     for (i = 0; i < loops; i++) {
-	Mutex_lock(&m);            // p1
-	while (num_full == max)    // p2
-	    Cond_wait(&cv, &m);    // p3
-	do_fill(i);                // p4
-	Cond_signal(&cv);          // p5
-	Mutex_unlock(&m);          // p6
+        Mutex_lock(&m);            // p1
+        while (num_full == max) {  // p2
+            Cond_wait(&cv, &m);    // p3
+        }
+        do_fill(i);         // p4
+        Cond_signal(&cv);          // p5
+        Mutex_unlock(&m);          // p6
     }
 
     // end case: put an end-of-production marker (-1) 
     // into shared buffer, one per consumer
     for (i = 0; i < consumers; i++) {
-	Mutex_lock(&m);
-	while (num_full == max) 
-	    Cond_wait(&cv, &m);
-	do_fill(-1);
-	Cond_signal(&cv);
-	Mutex_unlock(&m);
+        Mutex_lock(&m);
+        while (num_full == max) {
+            Cond_wait(&cv, &m);
+        }
+            
+        do_fill(-1);
+        Cond_signal(&cv);
+        Mutex_unlock(&m);
     }
 
     return NULL;
@@ -65,12 +68,15 @@ void *consumer(void *arg) {
     // consumer: keep pulling data out of shared buffer
     // until you receive a -1 (end-of-production marker)
     while (tmp != -1) { 
-	Mutex_lock(&m);           // c1
-	while (num_full == 0)     // c2 
-	    Cond_wait(&cv, &m);   // c3
-	tmp = do_get();           // c4
-	Cond_signal(&cv);         // c5
-	Mutex_unlock(&m);         // c6
+        Mutex_lock(&m);           // c1
+        while (num_full == 0) {   // c2 
+            Cond_wait(&cv, &m);   // c3
+        }
+        
+        tmp = do_get();           // c4
+        Cond_signal(&cv);         // c5
+        Mutex_unlock(&m);         // c6
+        printf("%d\n", tmp);
     }
     return NULL;
 }
@@ -79,8 +85,8 @@ int
 main(int argc, char *argv[])
 {
     if (argc != 4) {
-	fprintf(stderr, "usage: %s <buffersize> <loops> <consumers>\n", argv[0]);
-	exit(1);
+	    fprintf(stderr, "usage: %s <buffersize> <loops> <consumers>\n", argv[0]);
+	    exit(1);
     }
     max = atoi(argv[1]);
     loops = atoi(argv[2]);
@@ -89,19 +95,23 @@ main(int argc, char *argv[])
     buffer = (int *) malloc(max * sizeof(int));
     assert(buffer != NULL);
 
+    // init buffer
     int i;
     for (i = 0; i < max; i++) {
-	buffer[i] = 0;
+	    buffer[i] = 0;
     }
 
     pthread_t pid, cid[consumers];
     Pthread_create(&pid, NULL, producer, NULL); 
+    
     for (i = 0; i < consumers; i++) {
-	Pthread_create(&cid[i], NULL, consumer, (void *) (long long int) i); 
+	    Pthread_create(&cid[i], NULL, consumer, (void *) (long long int) i); 
     }
+
     Pthread_join(pid, NULL); 
+
     for (i = 0; i < consumers; i++) {
-	Pthread_join(cid[i], NULL); 
+	    Pthread_join(cid[i], NULL); 
     }
     return 0;
 }
